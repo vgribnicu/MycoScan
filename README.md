@@ -14,5 +14,5 @@ Keys: (please use English layout, not Russian!)
 * Esc - exit
 * Enter - export OBJ
 
-Mouse: left click - create
+Mouse: left click - add point.
 
