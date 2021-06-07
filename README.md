@@ -1,5 +1,5 @@
 # MycoScan
-Program for digitazing mycelium photos for building 3D mesh.
+Program for digitizing mycelium photos for building 3D mesh.
 
 You can get binaries from Releases section.
 To build by yourself - use openFrameworks.
