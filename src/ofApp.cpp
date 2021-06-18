@@ -2,6 +2,10 @@
 #include "ofxKuFile.h"
 #include "ofxKuGeomMeshUtils.h"
 
+//TODO:
+//Join points near lines
+//Split crossing lines in 3D
+
 vector<ofPoint> p_;
 ofTexture image_;
 
@@ -10,25 +14,33 @@ ofTexture image_;
 bool prev_ = false;
 ofPoint prev_p_;
 
+//Zoom
+int zoom_divisor = 5;		//zoom/zoom_divisor - actual zoom
+int zoom_ = zoom_divisor * 2;
+
+int shiftx_ = 0;		//shift of image
+int shifty_ = 0;
 
 //--------------------------------------------------------------
 void ofApp::setup(){
-	string Title = "Mycoscan 1.0";
+	string Title = "Mycoscan 1.1";
 	ofSetWindowTitle(Title);
 	ofSetFrameRate(60);
 
 	cout << "==============================================" << endl;
 	cout << Title << endl;
 	cout << "Keys (please use English layout, not Russian!):" << endl;
-	cout << "    Space - end current line, Backspace - delete last, L - reload, S - save, Esc - exit" << endl;
-	cout << "    Enter - export OBJ" << endl;
-	cout << "Mouse: left click - create" << endl;
+	cout << "Navigation: right mouse drag - move, 1, 2-change scale" << endl;
+	cout << "Marking: left mouse click - create lines, Space - end current line, Backspace - delete last" << endl;
+	cout << "Control: L - reload, S - save, Esc - exit, Enter - export OBJ" << endl;
 	cout << "==============================================" << endl;
 
 	ofLoadImage(image_, "image.jpg");
 	cout << "Loaded image " << image_.getWidth() << " x " << image_.getHeight() << endl;
 
 	load();
+
+	ofHideCursor();
 
 }
 
@@ -78,16 +90,19 @@ float get_scale() {
 	int w = image_.getWidth();
 	int h = image_.getHeight();
 	if (w == 0 || h == 0) return 1;
-	return min(W / w, H / h);
+	float scale = zoom_ * min(W / w, H / h) / zoom_divisor;
+	return scale;
 }
 
 //--------------------------------------------------------------
 //find nearest point or new point
 ofPoint get_point(int mousex, int mousey) {
-	float Rad = 5;
-
 	float scl = get_scale();
+	float Rad = 3 / scl;
+
 	ofPoint P(mousex / scl, mousey / scl);
+	P.x -= shiftx_;
+	P.y -= shifty_;
 	for (auto& p : p_) {
 		if (ofDist(p.x, p.y, P.x, P.y) < Rad) {
 			return p;
@@ -105,25 +120,26 @@ void ofApp::draw(){
 	ofPushMatrix();
 	float scl = get_scale();
 	ofScale(scl, scl);
+	ofTranslate(shiftx_, shifty_);
 
-	int img_color = 200;			//draw image darker
+	int img_color = 255; //200;			//draw image darker
 	ofSetColor(img_color);
 	image_.draw(0, 0);
 
 	//points
-	ofSetColor(255, 0, 0);
+	ofSetColor(0, 0, 255);
 	ofSetLineWidth(3);
 	int n = p_.size();
-	n = n / 2 * 2;	//elimimate odd count
+	n = n / 2 * 2;	//eliminate odd count
 	for (int i = 0; i < n; i += 2) {
 		ofLine(p_[i], p_[i + 1]);
 	}
 	ofSetLineWidth(1);
-	ofSetColor(0, 0, 255);
+	/*ofSetColor(0, 0, 255);
 	ofFill();
 	for (int i = 0; i < n; i++) {
 		ofDrawRectangle(p_[i].x - 3, p_[i].y - 3, 6, 6);
-	}
+	}*/
 
 
 	//line from previous and current mouse position
@@ -157,6 +173,11 @@ void ofApp::draw(){
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
+	//zoom
+	if (key == '1') { zoom_ = max(zoom_ - 1, 1); cout << "zoom " << zoom_ << endl; }
+	if (key == '2') { zoom_ = zoom_ + 1; cout << "zoom " << zoom_ << endl; }
+
+
 	if (key == 's') save();
 	if (key == 'l') load();
 	if (key == OF_KEY_BACKSPACE) {
@@ -216,12 +237,32 @@ void ofApp::mouseMoved(int x, int y ){
 }
 
 //--------------------------------------------------------------
-void ofApp::mouseDragged(int x, int y, int button){
 
+int dragx_ = 0;
+int dragy_ = 0;
+int shiftx0 = 0;
+int shifty0 = 0;
+
+void ofApp::mouseDragged(int x, int y, int button){
+	if (button == 2) {
+		float scl = get_scale();
+		shiftx_ = shiftx0 + (x - dragx_) / scl;
+		shifty_ = shifty0 + (y - dragy_) / scl;
+	}
 }
 
 //--------------------------------------------------------------
 void ofApp::mousePressed(int x, int y, int button){
+	if (button == 2) {
+		//right button - move image
+		dragx_ = x;
+		dragy_ = y;
+		shiftx0 = shiftx_;
+		shifty0 = shifty_;
+		return;
+	}
+
+	//left button - add lines
 	ofPoint p = get_point(x, y);
 	if (prev_) {
 		p_.push_back(prev_p_);
